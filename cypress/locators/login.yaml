@@ -1,0 +1,36 @@
+# ============================================
+# Login Page Locators
+# ============================================
+# Format: elementName: selector
+# Supported selector types:
+#   - CSS: Default (e.g., "#id", ".class", "[attribute]")
+#   - XPath: Prefix with "xpath=" (e.g., "xpath=//button[@type='submit']")
+#   - Contains text: Prefix with "text=" (e.g., "text=Login")
+#   - Data attributes: Recommended (e.g., "[data-testid='login-btn']")
+
+loginPage:
+  # Page URL
+  url: "/login"
+  
+  # Input fields
+  usernameInput: "[data-testid='username-input']"
+  passwordInput: "[data-testid='password-input']"
+  emailInput: "#email"
+  
+  # Buttons
+  loginButton: "[data-testid='login-button']"
+  forgotPasswordLink: "a[href*='forgot-password']"
+  signUpLink: "[data-testid='signup-link']"
+  rememberMeCheckbox: "#remember-me"
+  
+  # Error messages
+  errorMessage: "[data-testid='error-message']"
+  validationError: ".validation-error"
+  
+  # Social login
+  googleLoginBtn: "[data-testid='google-login']"
+  facebookLoginBtn: "[data-testid='facebook-login']"
+  
+  # Loading states
+  loadingSpinner: ".loading-spinner"
+  submitButtonLoading: "[data-testid='login-button'][disabled]"

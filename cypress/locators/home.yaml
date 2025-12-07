@@ -1,0 +1,36 @@
+# ============================================
+# Home Page Locators
+# ============================================
+
+homePage:
+  # Page URL
+  url: "/"
+  
+  # Header elements
+  header: "header"
+  logo: "[data-testid='logo']"
+  navigationMenu: "nav"
+  searchInput: "[data-testid='search-input']"
+  searchButton: "[data-testid='search-button']"
+  
+  # User menu
+  userMenu: "[data-testid='user-menu']"
+  userAvatar: "[data-testid='user-avatar']"
+  logoutButton: "[data-testid='logout-button']"
+  profileLink: "[data-testid='profile-link']"
+  settingsLink: "[data-testid='settings-link']"
+  
+  # Main content
+  mainContent: "main"
+  heroSection: "[data-testid='hero-section']"
+  featuredItems: "[data-testid='featured-items']"
+  
+  # Footer
+  footer: "footer"
+  footerLinks: "footer a"
+  copyrightText: "[data-testid='copyright']"
+  
+  # Notifications
+  notificationBell: "[data-testid='notification-bell']"
+  notificationCount: "[data-testid='notification-count']"
+  notificationDropdown: "[data-testid='notification-dropdown']"

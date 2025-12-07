@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://www.example.com",
+  "env": {
+    "environment": "prod",
+    "apiBaseUrl": "https://api.example.com",
+    "apiVersion": "v1",
+    "timeout": 20000,
+    "retries": 3
+  }
+}

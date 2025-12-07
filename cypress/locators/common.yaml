@@ -1,0 +1,56 @@
+# ============================================
+# Common/Shared Locators
+# ============================================
+# These locators are used across multiple pages
+
+common:
+  # Buttons
+  primaryButton: ".btn-primary"
+  secondaryButton: ".btn-secondary"
+  submitButton: "button[type='submit']"
+  cancelButton: "[data-testid='cancel-button']"
+  closeButton: "[data-testid='close-button']"
+  
+  # Form elements
+  inputField: "input"
+  textArea: "textarea"
+  selectDropdown: "select"
+  checkbox: "input[type='checkbox']"
+  radioButton: "input[type='radio']"
+  
+  # Modals
+  modal: "[data-testid='modal']"
+  modalHeader: "[data-testid='modal-header']"
+  modalBody: "[data-testid='modal-body']"
+  modalFooter: "[data-testid='modal-footer']"
+  modalCloseBtn: "[data-testid='modal-close']"
+  modalOverlay: ".modal-overlay"
+  
+  # Alerts and notifications
+  successAlert: "[data-testid='success-alert']"
+  errorAlert: "[data-testid='error-alert']"
+  warningAlert: "[data-testid='warning-alert']"
+  infoAlert: "[data-testid='info-alert']"
+  toastNotification: "[data-testid='toast']"
+  
+  # Loading states
+  loadingSpinner: "[data-testid='loading-spinner']"
+  skeletonLoader: ".skeleton-loader"
+  progressBar: "[data-testid='progress-bar']"
+  
+  # Tables
+  table: "table"
+  tableHeader: "thead"
+  tableBody: "tbody"
+  tableRow: "tbody tr"
+  tableCell: "tbody td"
+  pagination: "[data-testid='pagination']"
+  
+  # Navigation
+  breadcrumb: "[data-testid='breadcrumb']"
+  tabs: "[data-testid='tabs']"
+  tabItem: "[data-testid='tab-item']"
+  
+  # Empty states
+  emptyState: "[data-testid='empty-state']"
+  noResultsMessage: "[data-testid='no-results']"

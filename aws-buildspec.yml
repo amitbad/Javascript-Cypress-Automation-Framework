@@ -1,0 +1,119 @@
+# AWS CodeBuild/CodePipeline Buildspec for Cypress Test Automation
+#
+# This file is used by AWS CodeBuild to run Cypress tests.
+# Configure this in your AWS CodePipeline for CI/CD.
+#
+# Prerequisites:
+# - AWS CodeBuild project configured
+# - Environment variables set in CodeBuild
+# - S3 bucket for artifacts (optional)
+
+version: 0.2
+
+env:
+  variables:
+    # Default values - override in CodeBuild environment
+    ENVIRONMENT: "qa"
+    BROWSER: "chrome"
+    TEST_TYPE: "all"
+    NODE_VERSION: "20"
+  
+  # Secrets from AWS Secrets Manager or Parameter Store
+  # Configure these in your CodeBuild project
+  secrets-manager:
+    CYPRESS_BASE_URL: "cypress-secrets:CYPRESS_BASE_URL"
+    CYPRESS_USERNAME: "cypress-secrets:CYPRESS_USERNAME"
+    CYPRESS_PASSWORD: "cypress-secrets:CYPRESS_PASSWORD"
+    CYPRESS_API_BASE_URL: "cypress-secrets:CYPRESS_API_BASE_URL"
+  
+  # Alternative: Use Parameter Store
+  # parameter-store:
+  #   CYPRESS_BASE_URL: "/cypress/base-url"
+  #   CYPRESS_USERNAME: "/cypress/username"
+  #   CYPRESS_PASSWORD: "/cypress/password"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Installing dependencies..."
+      - npm ci
+      
+      # Install Chrome browser
+      - echo "Installing Chrome..."
+      - apt-get update
+      - apt-get install -y wget gnupg
+      - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+      - echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+      - apt-get update
+      - apt-get install -y google-chrome-stable
+      
+      # Verify Cypress
+      - npx cypress verify
+      - npx cypress info
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase..."
+      - echo "Environment: $ENVIRONMENT"
+      - echo "Browser: $BROWSER"
+      - echo "Test Type: $TEST_TYPE"
+      
+      # Clean previous reports
+      - npm run clean:reports || true
+
+  build:
+    commands:
+      - echo "Running Cypress tests..."
+      
+      # Build test command based on parameters
+      - |
+        TEST_COMMAND="npx cypress run --browser $BROWSER --env configFile=$ENVIRONMENT"
+        
+        case "$TEST_TYPE" in
+          smoke)
+            TEST_COMMAND="$TEST_COMMAND --env grepTags=@smoke"
+            ;;
+          regression)
+            TEST_COMMAND="$TEST_COMMAND --env grepTags=@regression"
+            ;;
+          api)
+            TEST_COMMAND="$TEST_COMMAND --spec 'cypress/e2e/api/**/*.cy.js'"
+            ;;
+        esac
+        
+        echo "Executing: $TEST_COMMAND"
+        $TEST_COMMAND || true
+
+  post_build:
+    commands:
+      - echo "Post-build phase..."
+      
+      # Generate reports
+      - npm run report:full || true
+      - npm run allure:generate || true
+      
+      - echo "Build completed on $(date)"
+
+reports:
+  cypress-reports:
+    files:
+      - 'cypress/reports/**/*.xml'
+    file-format: JUNITXML
+    base-directory: '.'
+
+artifacts:
+  files:
+    - 'cypress/screenshots/**/*'
+    - 'cypress/videos/**/*'
+    - 'cypress/reports/**/*'
+    - 'allure-results/**/*'
+    - 'allure-report/**/*'
+  name: cypress-test-artifacts-$(date +%Y-%m-%d)
+  discard-paths: no
+
+cache:
+  paths:
+    - 'node_modules/**/*'
+    - '~/.cache/Cypress/**/*'

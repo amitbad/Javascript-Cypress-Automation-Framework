@@ -1,0 +1,23 @@
+{
+  "posts": {
+    "validPost": {
+      "title": "Test Post Title",
+      "body": "This is the test post body content for testing purposes.",
+      "userId": 1
+    },
+    "updatedPost": {
+      "title": "Updated Post Title",
+      "body": "This is the updated post body content.",
+      "userId": 1
+    }
+  },
+  "searchTerms": {
+    "valid": "test product",
+    "empty": "",
+    "special": "test@#$%"
+  },
+  "pagination": {
+    "pageSize": 10,
+    "defaultPage": 1
+  }
+}

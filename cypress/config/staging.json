@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://staging.example.com",
+  "env": {
+    "environment": "staging",
+    "apiBaseUrl": "https://api.staging.example.com",
+    "apiVersion": "v1",
+    "timeout": 15000,
+    "retries": 2
+  }
+}

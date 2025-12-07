@@ -1,0 +1,242 @@
+# Azure DevOps Pipeline for Cypress Test Automation
+# 
+# This pipeline is configured for MANUAL trigger only.
+# It will NOT run automatically on push or PR.
+# 
+# To enable automatic triggers, uncomment the 'trigger' and 'pr' sections below.
+
+# MANUAL TRIGGER ONLY - No automatic builds
+trigger: none
+pr: none
+
+# Uncomment below for automatic triggers (NOT RECOMMENDED without proper configuration)
+# trigger:
+#   branches:
+#     include:
+#       - main
+#       - develop
+# pr:
+#   branches:
+#     include:
+#       - main
+
+parameters:
+  - name: environment
+    displayName: 'Environment'
+    type: string
+    default: 'qa'
+    values:
+      - qa
+      - staging
+      - prod
+
+  - name: browser
+    displayName: 'Browser'
+    type: string
+    default: 'chrome'
+    values:
+      - chrome
+      - firefox
+      - edge
+      - electron
+
+  - name: testType
+    displayName: 'Test Type'
+    type: string
+    default: 'all'
+    values:
+      - all
+      - smoke
+      - regression
+      - api
+
+  - name: headed
+    displayName: 'Run in Headed Mode'
+    type: boolean
+    default: false
+
+variables:
+  # Node.js version
+  nodeVersion: '20.x'
+  
+  # npm cache directory
+  npm_config_cache: $(Pipeline.Workspace)/.npm
+  
+  # Report directories
+  reportsDir: 'cypress/reports'
+  allureResults: 'allure-results'
+  allureReport: 'allure-report'
+
+# Agent pool - use Microsoft-hosted Ubuntu agent
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Test
+    displayName: 'Run Cypress Tests'
+    jobs:
+      - job: CypressTests
+        displayName: 'Cypress E2E Tests'
+        timeoutInMinutes: 60
+        
+        steps:
+          # Checkout code
+          - checkout: self
+            displayName: 'Checkout Repository'
+            clean: true
+
+          # Setup Node.js
+          - task: NodeTool@0
+            displayName: 'Setup Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          # Cache npm dependencies
+          - task: Cache@2
+            displayName: 'Cache npm packages'
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(npm_config_cache)
+
+          # Install dependencies
+          - script: npm ci
+            displayName: 'Install Dependencies'
+
+          # Verify Cypress installation
+          - script: npx cypress verify
+            displayName: 'Verify Cypress'
+
+          # Run Cypress tests
+          - script: |
+              TEST_COMMAND="npx cypress run --browser ${{ parameters.browser }}"
+              
+              # Add headed mode if selected
+              if [ "${{ parameters.headed }}" = "true" ]; then
+                TEST_COMMAND="$TEST_COMMAND --headed"
+              fi
+              
+              # Add environment config
+              TEST_COMMAND="$TEST_COMMAND --env configFile=${{ parameters.environment }}"
+              
+              # Add test type filter
+              case "${{ parameters.testType }}" in
+                smoke)
+                  TEST_COMMAND="$TEST_COMMAND --env grepTags=@smoke"
+                  ;;
+                regression)
+                  TEST_COMMAND="$TEST_COMMAND --env grepTags=@regression"
+                  ;;
+                api)
+                  TEST_COMMAND="$TEST_COMMAND --spec 'cypress/e2e/api/**/*.cy.js'"
+                  ;;
+              esac
+              
+              echo "Running: $TEST_COMMAND"
+              $TEST_COMMAND
+            displayName: 'Run Cypress Tests'
+            env:
+              CYPRESS_BASE_URL: $(CYPRESS_BASE_URL)
+              CYPRESS_username: $(CYPRESS_USERNAME)
+              CYPRESS_password: $(CYPRESS_PASSWORD)
+              CYPRESS_apiBaseUrl: $(CYPRESS_API_BASE_URL)
+            continueOnError: true
+
+          # Generate Mochawesome report
+          - script: npm run report:full || true
+            displayName: 'Generate Mochawesome Report'
+            condition: always()
+
+          # Generate Allure report
+          - script: npm run allure:generate || true
+            displayName: 'Generate Allure Report'
+            condition: always()
+
+          # Publish screenshots
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Screenshots'
+            condition: always()
+            inputs:
+              PathtoPublish: 'cypress/screenshots'
+              ArtifactName: 'screenshots'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          # Publish videos
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Videos'
+            condition: always()
+            inputs:
+              PathtoPublish: 'cypress/videos'
+              ArtifactName: 'videos'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          # Publish Mochawesome report
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Mochawesome Report'
+            condition: always()
+            inputs:
+              PathtoPublish: 'cypress/reports'
+              ArtifactName: 'mochawesome-report'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          # Publish Allure results
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Allure Results'
+            condition: always()
+            inputs:
+              PathtoPublish: 'allure-results'
+              ArtifactName: 'allure-results'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          # Publish Allure report
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Allure Report'
+            condition: always()
+            inputs:
+              PathtoPublish: 'allure-report'
+              ArtifactName: 'allure-report'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          # Publish test results (JUnit format)
+          - task: PublishTestResults@2
+            displayName: 'Publish Test Results'
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/cypress/reports/**/*.xml'
+              mergeTestResults: true
+              failTaskOnFailedTests: false
+            continueOnError: true
+
+  # Optional: Deploy reports to Azure Static Web App
+  - stage: PublishReports
+    displayName: 'Publish Reports'
+    dependsOn: Test
+    condition: always()
+    jobs:
+      - job: PublishToStorage
+        displayName: 'Publish to Azure Storage'
+        steps:
+          - download: current
+            artifact: allure-report
+            displayName: 'Download Allure Report'
+            continueOnError: true
+
+          # Uncomment and configure for Azure Storage deployment
+          # - task: AzureCLI@2
+          #   displayName: 'Upload to Azure Storage'
+          #   inputs:
+          #     azureSubscription: 'Your-Azure-Subscription'
+          #     scriptType: 'bash'
+          #     scriptLocation: 'inlineScript'
+          #     inlineScript: |
+          #       az storage blob upload-batch \
+          #         --account-name yourstorageaccount \
+          #         --destination '$web/reports/$(Build.BuildNumber)' \
+          #         --source '$(Pipeline.Workspace)/allure-report'

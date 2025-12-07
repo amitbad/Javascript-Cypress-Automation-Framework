@@ -1,0 +1,170 @@
+# GitHub Actions Workflow for Cypress Tests
+# This workflow is set to manual trigger only (workflow_dispatch)
+# It will NOT run automatically on push or pull request
+
+name: Cypress E2E Tests
+
+on:
+  # Manual trigger only - will not run on push/PR
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - qa
+          - staging
+          - prod
+      browser:
+        description: 'Browser to run tests'
+        required: true
+        default: 'chrome'
+        type: choice
+        options:
+          - chrome
+          - firefox
+          - edge
+          - electron
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - smoke
+          - regression
+          - api
+
+# Uncomment below to enable automatic runs (NOT RECOMMENDED without proper configuration)
+# on:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main ]
+
+env:
+  # These should be set in GitHub Secrets
+  CYPRESS_BASE_URL: ${{ secrets.CYPRESS_BASE_URL }}
+  CYPRESS_USERNAME: ${{ secrets.CYPRESS_USERNAME }}
+  CYPRESS_PASSWORD: ${{ secrets.CYPRESS_PASSWORD }}
+  CYPRESS_API_BASE_URL: ${{ secrets.CYPRESS_API_BASE_URL }}
+  CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        # Run tests in parallel containers (adjust as needed)
+        containers: [1]
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run Cypress Tests
+        uses: cypress-io/github-action@v6
+        with:
+          browser: ${{ github.event.inputs.browser || 'chrome' }}
+          headed: false
+          config-file: cypress.config.js
+          env: configFile=${{ github.event.inputs.environment || 'qa' }}
+          spec: |
+            ${{ github.event.inputs.test_type == 'smoke' && 'cypress/e2e/**/*.cy.js --env grepTags=@smoke' || '' }}
+            ${{ github.event.inputs.test_type == 'regression' && 'cypress/e2e/**/*.cy.js --env grepTags=@regression' || '' }}
+            ${{ github.event.inputs.test_type == 'api' && 'cypress/e2e/api/**/*.cy.js' || '' }}
+            ${{ github.event.inputs.test_type == 'all' && 'cypress/e2e/**/*.cy.js' || '' }}
+        env:
+          CYPRESS_BASE_URL: ${{ secrets.CYPRESS_BASE_URL }}
+          CYPRESS_username: ${{ secrets.CYPRESS_USERNAME }}
+          CYPRESS_password: ${{ secrets.CYPRESS_PASSWORD }}
+
+      - name: Upload Screenshots on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots-${{ matrix.containers }}
+          path: cypress/screenshots
+          retention-days: 7
+
+      - name: Upload Videos
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-videos-${{ matrix.containers }}
+          path: cypress/videos
+          retention-days: 7
+
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-reports-${{ matrix.containers }}
+          path: cypress/reports
+          retention-days: 7
+
+      - name: Generate Allure Report
+        if: always()
+        run: |
+          npm run allure:generate || true
+
+      - name: Upload Allure Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results-${{ matrix.containers }}
+          path: allure-results
+          retention-days: 7
+
+      - name: Upload Allure Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report-${{ matrix.containers }}
+          path: allure-report
+          retention-days: 7
+
+  # Optional: Merge and publish reports
+  publish-reports:
+    needs: cypress-tests
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Merge Mochawesome Reports
+        run: |
+          npm ci
+          npm run report:full || true
+
+      - name: Deploy Report to GitHub Pages
+        if: success()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+          destination_dir: reports/${{ github.run_number }}

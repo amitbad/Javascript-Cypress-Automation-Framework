@@ -1,0 +1,32 @@
+{
+  "validUser": {
+    "username": "testuser@example.com",
+    "password": "password123"
+  },
+  "invalidUser": {
+    "username": "invalid@example.com",
+    "password": "wrongpassword"
+  },
+  "newUser": {
+    "name": "Test User",
+    "username": "newtestuser",
+    "email": "newtestuser@example.com",
+    "phone": "1234567890",
+    "website": "https://example.com",
+    "address": {
+      "street": "123 Test Street",
+      "suite": "Apt 1",
+      "city": "Test City",
+      "zipcode": "12345"
+    },
+    "company": {
+      "name": "Test Company",
+      "catchPhrase": "Testing made easy"
+    }
+  },
+  "adminUser": {
+    "username": "admin@example.com",
+    "password": "adminpass123",
+    "role": "admin"
+  }
+}
